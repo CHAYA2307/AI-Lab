@@ -1,0 +1,43 @@
+class VacuumEnvironment:
+    def __init__(self):
+        self.rooms = ["Dirty", "Dirty"]  # Room 0 and Room 1
+        self.agent_position = 0
+
+    def is_dirty(self):
+        return self.rooms[self.agent_position] == "Dirty"
+
+    def clean(self):
+        self.rooms[self.agent_position] = "Clean"
+
+    def move_left(self):
+        if self.agent_position > 0:
+            self.agent_position -= 1
+
+    def move_right(self):
+        if self.agent_position < 1:
+            self.agent_position += 1
+
+    def __str__(self):
+        return f"Rooms: {self.rooms}, Agent at: {self.agent_position}"
+
+class VacuumAgent:
+    def act(self, env):
+        if env.is_dirty():
+            print(f"Step: Cleaning room {env.agent_position}")
+            env.clean()
+        else:
+            if env.agent_position == 0:
+                env.move_right()
+                print("Step: Moved right to room 1")
+            else:
+                env.move_left()
+                print("Step: Moved left to room 0")
+
+# Simulation
+env = VacuumEnvironment()
+agent = VacuumAgent()
+
+print("Initial State:", env)
+for step in range(4):
+    agent.act(env)
+    print(env)
