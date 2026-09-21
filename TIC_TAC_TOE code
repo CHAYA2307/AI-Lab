@@ -1,0 +1,83 @@
+import sys
+from collections import deque
+
+def print_grid(grid):
+    """Display the grid in a readable format."""
+    for row in grid:
+        print(" ".join(row))
+    print()
+
+def bfs_shortest_path(grid, start, end):
+    """Find shortest path cost using BFS avoiding filled cells."""
+    rows, cols = len(grid), len(grid[0])
+    visited = [[False] * cols for _ in range(rows)]
+    queue = deque([(start[0], start[1], 0)])  # (row, col, cost)
+    visited[start[0]][start[1]] = True
+
+    directions = [(1,0), (-1,0), (0,1), (0,-1)]  # Down, Up, Right, Left
+
+    while queue:
+        r, c, cost = queue.popleft()
+
+        if (r, c) == end:
+            return cost  # Found shortest path
+
+        for dr, dc in directions:
+            nr, nc = r + dr, c + dc
+            if 0 <= nr < rows and 0 <= nc < cols:
+                if not visited[nr][nc] and grid[nr][nc] == ".":
+                    visited[nr][nc] = True
+                    queue.append((nr, nc, cost + 1))
+
+    return -1  # No path found
+
+def main():
+    try:
+        # Input grid size
+        n = int(input("Enter grid size (n for n x n): "))
+        if n <= 0:
+            print("Grid size must be positive.")
+            return
+
+        # Initialize empty grid
+        grid = [["."] * n for _ in range(n)]
+
+        # Input number of pre-filled cells
+        filled_count = int(input("Enter number of filled cells: "))
+        for _ in range(filled_count):
+            r, c = map(int, input("Enter filled cell position (row col): ").split())
+            if 0 <= r < n and 0 <= c < n:
+                grid[r][c] = "X"  # Mark as filled
+            else:
+                print(f"Invalid position ({r}, {c}) ignored.")
+
+        print("\nInitial Grid:")
+        print_grid(grid)
+
+        # Input start and end positions for pathfinding
+        sr, sc = map(int, input("Enter start position (row col): ").split())
+        er, ec = map(int, input("Enter end position (row col): ").split())
+
+        if not (0 <= sr < n and 0 <= sc < n and 0 <= er < n and 0 <= ec < n):
+            print("Invalid start or end position.")
+            return
+
+        if grid[sr][sc] != "." or grid[er][ec] != ".":
+            print("Start or end position is blocked.")
+            return
+
+        # Find shortest path cost
+        cost = bfs_shortest_path(grid, (sr, sc), (er, ec))
+        if cost != -1:
+            print(f"Shortest path cost: {cost}")
+        else:
+            print("No path found.")
+
+    except ValueError:
+        print("Invalid input. Please enter integers only.")
+    except KeyboardInterrupt:
+        print("\nProgram interrupted.")
+        sys.exit(0)
+
+if __name__ == "__main__":
+    main()
