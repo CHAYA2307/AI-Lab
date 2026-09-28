@@ -1,0 +1,78 @@
+from collections import deque
+
+# Goal state for the 8-puzzle
+GOAL_STATE = (1, 2, 3,
+              4, 5, 6,
+              7, 8, 0)  # 0 represents the blank tile
+
+# Possible moves: up, down, left, right
+MOVES = {
+    'UP': -3,
+    'DOWN': 3,
+    'LEFT': -1,
+    'RIGHT': 1
+}
+
+def is_valid_move(blank_index, move):
+    """Check if a move is valid for the blank position."""
+    if move == 'UP' and blank_index < 3:
+        return False
+    if move == 'DOWN' and blank_index > 5:
+        return False
+    if move == 'LEFT' and blank_index % 3 == 0:
+        return False
+    if move == 'RIGHT' and blank_index % 3 == 2:
+        return False
+    return True
+
+def apply_move(state, move):
+    """Return a new state after applying the given move."""
+    blank_index = state.index(0)
+    new_index = blank_index + MOVES[move]
+    new_state = list(state)
+    new_state[blank_index], new_state[new_index] = new_state[new_index], new_state[blank_index]
+    return tuple(new_state)
+
+def dfs(start_state):
+    """Depth-First Search to solve the 8-puzzle."""
+    stack = [(start_state, [])]  # (state, path)
+    visited = set()
+
+    while stack:
+        state, path = stack.pop()
+
+        if state == GOAL_STATE:
+            return path
+
+        if state in visited:
+            continue
+        visited.add(state)
+
+        blank_index = state.index(0)
+        for move in MOVES:
+            if is_valid_move(blank_index, move):
+                next_state = apply_move(state, move)
+                if next_state not in visited:
+                    stack.append((next_state, path + [move]))
+
+    return None  # No solution found
+
+def input_puzzle():
+    """Read and validate puzzle input from the user."""
+    try:
+        puzzle = list(map(int, input("Enter the puzzle state (0 for blank, space-separated 9 numbers): ").split()))
+        if len(puzzle) != 9 or sorted(puzzle) != list(range(9)):
+            raise ValueError
+        return tuple(puzzle)
+    except ValueError:
+        print("Invalid input! Please enter numbers 0-8 exactly once.")
+        exit(1)
+
+if __name__ == "__main__":
+    start_state = input_puzzle()
+    solution = dfs(start_state)
+
+    if solution:
+        print(f"Solution found in {len(solution)} moves: {solution}")
+    else:
+        print("No solution exists for the given puzzle.")
