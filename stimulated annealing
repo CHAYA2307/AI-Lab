@@ -1,6 +1,6 @@
 import random
 import math
-print("DEEPTHI GIRISH 1WN24CS088")
+print("Chaya 1WN24CS072")
 N = 8
 
 def cost(board):
