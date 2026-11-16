@@ -1,0 +1,50 @@
+
+def unify(x, y, substitution):
+    if x == y:
+        return substitution
+
+    if isinstance(x, str) and x.islower():
+        substitution[x] = y
+        return substitution
+
+    if isinstance(y, str) and y.islower():
+        substitution[y] = x
+        return substitution
+
+    if isinstance(x, tuple) and isinstance(y, tuple):
+        if len(x) != len(y) or x[0] != y[0]:
+            return None
+
+        for a, b in zip(x[1:], y[1:]):
+            substitution = unify(a, b, substitution)
+            if substitution is None:
+                return None
+
+        return substitution
+
+    return None
+
+
+def parse_expression(expression):
+    name, values = expression.split("(", 1)
+    values = values.rstrip(")")
+    arguments = tuple(v.strip() for v in values.split(","))
+    return (name.strip(),) + arguments
+
+
+# CLI input
+expr1 = input("Enter first expression: ")
+expr2 = input("Enter second expression: ")
+
+term1 = parse_expression(expr1)
+term2 = parse_expression(expr2)
+
+result = unify(term1, term2, {})
+
+if result is not None:
+    print("\nUnification Successful!")
+    print("Substitution:")
+    for key, value in result.items():
+        print(key, "=", value)
+else:
+    print("\nUnification Failed!")
