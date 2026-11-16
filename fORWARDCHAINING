@@ -1,0 +1,121 @@
+
+import re
+print("chaya 1WN24CS072")
+
+def parse_atom(s):
+    name, args = s.strip().split("(", 1)
+    args = args.rstrip(")")
+    return name.strip(), [x.strip() for x in args.split(",")]
+
+
+def is_variable(x):
+    return x.islower()
+
+
+def match(pattern, fact, substitution):
+    if pattern[0] != fact[0] or len(pattern[1]) != len(fact[1]):
+        return None
+
+    sub = substitution.copy()
+
+    for p, f in zip(pattern[1], fact[1]):
+        if is_variable(p):
+            if p in sub and sub[p] != f:
+                return None
+            sub[p] = f
+        elif p != f:
+            return None
+
+    return sub
+
+
+def apply_rule(conditions, facts):
+    substitutions = [{}]
+
+    for condition in conditions:
+        new_substitutions = []
+
+        for sub in substitutions:
+            for fact in facts:
+                result = match(condition, fact, sub)
+
+                if result is not None:
+                    new_substitutions.append(result)
+
+        substitutions = new_substitutions
+
+    return substitutions
+
+
+def substitute(atom, sub):
+    name, args = atom
+    return name, [sub.get(x, x) for x in args]
+
+
+def display(atom):
+    return atom[0] + "(" + ",".join(atom[1]) + ")"
+
+
+def forward_chaining(facts, rules, goal):
+    known = list(facts)
+
+    print("\nInitial Facts:")
+    for fact in known:
+        print(display(fact))
+
+    while True:
+        new_fact_added = False
+
+        for conditions, conclusion in rules:
+            substitutions = apply_rule(conditions, known)
+
+            for sub in substitutions:
+                new_fact = substitute(conclusion, sub)
+
+                if new_fact not in known:
+                    known.append(new_fact)
+                    print("\nDerived:", display(new_fact))
+                    new_fact_added = True
+
+                    if new_fact == goal:
+                        print("\nGoal Achieved:", display(goal))
+                        return True
+
+        if not new_fact_added:
+            break
+
+    print("\nGoal Cannot Be Achieved:", display(goal))
+    return False
+
+
+# CLI INPUT
+
+n = int(input("Enter number of facts: "))
+facts = []
+
+for i in range(n):
+    facts.append(parse_atom(input("Enter fact: ")))
+
+
+r = int(input("\nEnter number of rules: "))
+rules = []
+
+for i in range(r):
+    print("\nRule", i + 1)
+
+    conditions = input("Enter conditions (separate predicates using semicolon): ")
+
+    # Extract complete predicates without splitting their arguments
+    condition_atoms = re.findall(r'\w+\([^()]*\)', conditions)
+
+    conclusion = input("Enter conclusion: ")
+
+    cond_list = [parse_atom(x) for x in condition_atoms]
+
+    rules.append((cond_list, parse_atom(conclusion)))
+
+
+goal = parse_atom(input("\nEnter goal: "))
+
+result = forward_chaining(facts, rules, goal)
+print(result)
