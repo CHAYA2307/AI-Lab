@@ -1,0 +1,443 @@
+
+import re
+from itertools import combinations, permutations
+print("chaya 1WN24CS072")
+# =====================================
+# 1. ENGLISH SENTENCE TO FOL CONVERSION
+# =====================================
+
+def convert_sentence(s):
+    s = s.lower().strip().rstrip(".")
+
+    clauses = []
+
+    if "john likes all" in s and "food" in s:
+        clauses.append("~Food(x) V Likes(John,x)")
+
+    elif "apple" in s and "vegetables" in s and "food" in s:
+        clauses.append("Food(Apple)")
+        clauses.append("Food(Vegetables)")
+
+    elif "anything anyone eats" in s and "not killed" in s:
+        clauses.append("~Eats(y,z) V Killed(y) V Food(z)")
+
+    elif "anil eats peanuts" in s:
+        clauses.append("Eats(Anil,Peanuts)")
+        clauses.append("Alive(Anil)")
+
+    elif "harry eats everything" in s and "anil eats" in s:
+        clauses.append("~Eats(Anil,w) V Eats(Harry,w)")
+
+    elif "alive" in s and "not killed" in s:
+        if "not killed implies alive" in s:
+            clauses.append("Killed(k) V Alive(k)")
+
+        elif "alive implies not killed" in s:
+            clauses.append("~Alive(k) V ~Killed(k)")
+
+        else:
+            print("Ambiguous sentence:", s)
+            return None
+
+    else:
+        print("Sentence not recognized:", s)
+        return None
+
+    return clauses
+
+
+# =====================================
+# 2. PARSE FOL CLAUSES
+# =====================================
+
+def parse_literal(s):
+    s = s.strip()
+
+    neg = s.startswith("~")
+
+    if neg:
+        s = s[1:].strip()
+
+    name, args = s.split("(", 1)
+
+    args = args.rstrip(")")
+
+    return (
+        neg,
+        name.strip(),
+        tuple(x.strip() for x in args.split(","))
+    )
+
+
+def parse_clause(s):
+    parts = re.split(r"\s+(?:V|OR|∨)\s+", s)
+    return [parse_literal(x) for x in parts]
+
+
+# =====================================
+# 3. VARIABLE CHECK
+# =====================================
+
+def is_var(x):
+    return bool(re.fullmatch(r"[a-z][a-zA-Z0-9_]*", x))
+
+
+# =====================================
+# 4. UNIFICATION
+# =====================================
+
+def substitute(x, subst):
+    while x in subst and subst[x] != x:
+        x = subst[x]
+
+    return x
+
+
+def unify(a, b, subst):
+    a = substitute(a, subst)
+    b = substitute(b, subst)
+
+    if a == b:
+        return True
+
+    if is_var(a):
+        subst[a] = b
+        return True
+
+    if is_var(b):
+        subst[b] = a
+        return True
+
+    return False
+
+
+def apply_subst(lit, subst):
+    neg, name, args = lit
+
+    return (
+        neg,
+        name,
+        tuple(substitute(x, subst) for x in args)
+    )
+
+
+# =====================================
+# 5. STANDARDIZE VARIABLES
+# =====================================
+
+def standardize(clause, tag):
+    mapping = {}
+    result = []
+
+    for neg, name, args in clause:
+
+        new_args = []
+
+        for arg in args:
+
+            if is_var(arg):
+
+                if arg not in mapping:
+                    mapping[arg] = arg + "_" + str(tag)
+
+                new_args.append(mapping[arg])
+
+            else:
+                new_args.append(arg)
+
+        result.append((neg, name, tuple(new_args)))
+
+    return result
+
+
+# =====================================
+# 6. CANONICAL FORM FOR DUPLICATES
+# =====================================
+
+def canonical(clause):
+
+    variables = sorted({
+        arg
+        for lit in clause
+        for arg in lit[2]
+        if is_var(arg)
+    })
+
+    best = None
+
+    for perm in permutations(
+        ["v" + str(i) for i in range(len(variables))]
+    ):
+
+        mapping = dict(zip(variables, perm))
+
+        normalized = []
+
+        for neg, name, args in clause:
+
+            new_args = tuple(
+                mapping.get(x, x) for x in args
+            )
+
+            normalized.append((neg, name, new_args))
+
+        key = tuple(sorted(normalized))
+
+        if best is None or key < best:
+            best = key
+
+    return best if best is not None else ()
+
+
+# =====================================
+# 7. DISPLAY CLAUSES
+# =====================================
+
+def display(clause):
+
+    if not clause:
+        return "{}"
+
+    parts = []
+
+    for neg, name, args in clause:
+
+        sign = "~" if neg else ""
+
+        parts.append(
+            sign + name + "(" + ",".join(args) + ")"
+        )
+
+    return " V ".join(parts)
+
+
+# =====================================
+# 8. RESOLUTION
+# =====================================
+
+counter = 0
+
+def resolve(c1, c2):
+
+    global counter
+
+    counter += 1
+
+    c1 = standardize(c1, counter * 2)
+    c2 = standardize(c2, counter * 2 + 1)
+
+    results = []
+
+    for i, l1 in enumerate(c1):
+
+        for j, l2 in enumerate(c2):
+
+            # Opposite signs required
+            if l1[0] == l2[0]:
+                continue
+
+            # Predicate names must match
+            if l1[1] != l2[1]:
+                continue
+
+            if len(l1[2]) != len(l2[2]):
+                continue
+
+            subst = {}
+            valid = True
+
+            # Unify arguments
+            for a, b in zip(l1[2], l2[2]):
+
+                if not unify(a, b, subst):
+                    valid = False
+                    break
+
+            if not valid:
+                continue
+
+            # Generate resolvent
+            result = []
+
+            for k, lit in enumerate(c1):
+
+                if k != i:
+                    result.append(apply_subst(lit, subst))
+
+            for k, lit in enumerate(c2):
+
+                if k != j:
+                    result.append(apply_subst(lit, subst))
+
+            result = list(set(result))
+
+            # Remove tautological clauses
+            tautology = False
+
+            for lit in result:
+
+                opposite = (
+                    not lit[0],
+                    lit[1],
+                    lit[2]
+                )
+
+                if opposite in result:
+                    tautology = True
+                    break
+
+            if not tautology and result not in results:
+                results.append(result)
+
+    return results
+
+
+# =====================================
+# 9. RESOLUTION REFUTATION
+# =====================================
+
+def resolution(clauses, goal):
+
+    print("\n========== CNF CLAUSES ==========")
+
+    for i, clause in enumerate(clauses):
+
+        print(
+            chr(97 + i),
+            ".",
+            display(clause)
+        )
+
+    # Negate goal
+    neg_goal = parse_clause("~" + goal)
+
+    print("\nNegated Goal:", display(neg_goal))
+
+    clauses.append(neg_goal)
+
+    known = list(clauses)
+
+    seen = set(canonical(c) for c in known)
+
+    print("\n========== RESOLUTION PROCESS ==========")
+
+    while True:
+
+        new_clauses = []
+
+        n = len(known)
+
+        for i in range(n):
+
+            for j in range(i + 1, n):
+
+                results = resolve(known[i], known[j])
+
+                for result in results:
+
+                    # Empty clause obtained
+                    if len(result) == 0:
+
+                        print("\nResolving:")
+                        print(display(known[i]))
+                        print("AND")
+                        print(display(known[j]))
+                        print("=> {}")
+
+                        print("\nEmpty clause generated!")
+                        print("Contradiction found!")
+                        print("\nGOAL PROVED")
+
+                        return True
+
+                    key = canonical(result)
+
+                    if key not in seen:
+
+                        seen.add(key)
+
+                        new_clauses.append(result)
+
+                        print(
+                            "New clause:",
+                            display(result)
+                        )
+
+        if not new_clauses:
+
+            print("\nNo empty clause generated.")
+            print("GOAL CANNOT BE PROVED")
+
+            return False
+
+        known.extend(new_clauses)
+
+        if len(known) > 1000:
+
+            print("Resolution limit reached.")
+            return False
+
+
+# =====================================
+# 10. MAIN PROGRAM
+# =====================================
+
+print("FIRST ORDER LOGIC - RESOLUTION")
+
+print("Enter English sentences.")
+
+n = int(input("Enter number of clauses: "))
+
+clauses = []
+
+for i in range(n):
+
+    sentence = input(
+        "Enter clause " + str(i + 1) + ": "
+    )
+
+    converted = convert_sentence(sentence)
+
+    if converted is None:
+
+        print("Invalid sentence. Please run again.")
+        exit()
+
+    for c in converted:
+
+        clauses.append(parse_clause(c))
+
+
+# =====================================
+# 11. GOAL INPUT
+# =====================================
+
+print("\nEnter goal in English:")
+
+goal_sentence = input().lower().strip().rstrip(".")
+
+goal_mapping = {
+
+    "john likes peanuts":
+        "Likes(John,Peanuts)",
+
+    "john likes the peanuts":
+        "Likes(John,Peanuts)"
+
+}
+
+if goal_sentence in goal_mapping:
+
+    goal = goal_mapping[goal_sentence]
+
+else:
+
+    print("Goal not recognized.")
+    exit()
+
+
+# =====================================
+# 12. EXECUTE RESOLUTION
+# =====================================
+
+resolution(clauses, goal)
